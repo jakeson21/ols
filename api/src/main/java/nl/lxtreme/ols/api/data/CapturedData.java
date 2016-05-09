@@ -247,7 +247,34 @@ public class CapturedData implements AcquisitionResult
    *          absolute number of samples
    */
   public CapturedData( final List<Integer> aValues, final List<Long> aTimestamps, final long aTriggerPosition,
-      final int aRate, final int aChannels, final int aEnabledChannels, final long aAbsoluteLength )
+      final int aRate, final int aChannels, final int aEnabledChannels, final long aAbsoluteLength)
+  {
+    this(aValues, aTimestamps, aTriggerPosition, aRate, aChannels, aEnabledChannels, aAbsoluteLength, true);
+  }
+
+
+  /**
+   * Constructs CapturedDataUncompressed based on the given compressed sampling data.
+   * 
+   * @param aValues
+   *          32bit values as read from device
+   * @param aTimestamps
+   *          time stamps in number of samples since sample start
+   * @param aTriggerPosition
+   *          position of trigger as time value
+   * @param aRate
+   *          sampling rate (may be set to <code>NOT_AVAILABLE</code>)
+   * @param aChannels
+   *          number of used channels
+   * @param aEnabledChannels
+   *          bit mask identifying used channels
+   * @param aAbsoluteLength
+   *          absolute number of samples
+   * @param aCompressData
+   *          flag to indicate whether to compress data or not
+   */
+  public CapturedData( final List<Integer> aValues, final List<Long> aTimestamps, final long aTriggerPosition,
+      final int aRate, final int aChannels, final int aEnabledChannels, final long aAbsoluteLength, final boolean aCompressData)
   {
     if ( aValues.size() != aTimestamps.size() )
     {
@@ -268,56 +295,75 @@ public class CapturedData implements AcquisitionResult
     if ( !aValues.isEmpty() )
     {
       final int size = aValues.size();
-
-      // 1: calculate the number of unique transitions...
-      int count = 1;
-
-      Integer oldValue = aValues.get( 0 );
-      Long lastTimestamp = aTimestamps.get( 0 );
-      for ( int i = 1; i < size; i++ )
+      if (aCompressData)
       {
-        Integer value = aValues.get( i );
-        if ( value.compareTo( oldValue ) != 0 )
+        // 1: calculate the number of unique transitions...
+        int count = 1;
+  
+        Integer oldValue = aValues.get( 0 );
+        Long lastTimestamp = aTimestamps.get( 0 );
+        for ( int i = 1; i < size; i++ )
+        {
+          Integer value = aValues.get( i );
+          if ( value.compareTo( oldValue ) != 0 )
+          {
+            count++;
+            lastTimestamp = aTimestamps.get( i );
+          }
+          oldValue = value;
+        }
+  
+        // Issue #167: make sure the absolute length is *always* present...
+        boolean addExtraSample = ( lastTimestamp.longValue() != absLength ) || count < 2;
+        if ( addExtraSample )
         {
           count++;
-          lastTimestamp = aTimestamps.get( i );
         }
-        oldValue = value;
-      }
-
-      // Issue #167: make sure the absolute length is *always* present...
-      boolean addExtraSample = ( lastTimestamp.longValue() != absLength ) || count < 2;
-      if ( addExtraSample )
-      {
-        count++;
-      }
-
-      // 2: copy *only* the unique transitions...
-      this.values = new int[count];
-      this.timestamps = new long[count];
-
-      this.values[0] = aValues.get( 0 ).intValue();
-      this.timestamps[0] = aTimestamps.get( 0 ).longValue();
-
-      oldValue = aValues.get( 0 );
-      for ( int i = 1, j = 1; i < size; i++ )
-      {
-        Integer value = aValues.get( i );
-        Long timestamp = aTimestamps.get( i );
-        if ( value.compareTo( oldValue ) != 0 )
+  
+        // 2: copy *only* the unique transitions...
+        this.values = new int[count];
+        this.timestamps = new long[count];
+  
+        this.values[0] = aValues.get( 0 ).intValue();
+        this.timestamps[0] = aTimestamps.get( 0 ).longValue();
+  
+        oldValue = aValues.get( 0 );
+        for ( int i = 1, j = 1; i < size; i++ )
         {
-          this.values[j] = value.intValue();
-          this.timestamps[j] = timestamp.longValue();
-          j++;
+          Integer value = aValues.get( i );
+          Long timestamp = aTimestamps.get( i );
+          if ( value.compareTo( oldValue ) != 0 )
+          {
+            this.values[j] = value.intValue();
+            this.timestamps[j] = timestamp.longValue();
+            j++;
+          }
+          oldValue = value;
         }
-        oldValue = value;
+  
+        // Issue #167: make sure the absolute length is *always* present...
+        if ( addExtraSample )
+        {
+          this.values[count - 1] = aValues.get( size - 1 ).intValue();
+          this.timestamps[count - 1] = absLength;
+        }
       }
-
-      // Issue #167: make sure the absolute length is *always* present...
-      if ( addExtraSample )
+      else
       {
-        this.values[count - 1] = aValues.get( size - 1 ).intValue();
-        this.timestamps[count - 1] = absLength;
+        // Uncompressed copy of data
+        this.values = new int[size];
+        this.timestamps = new long[size];
+        try {
+          for ( int i = 0; i < size; i++ )
+          {
+            this.values[i] = aValues.get(i).intValue();
+            this.timestamps[i] = aTimestamps.get(i).longValue();
+          }
+        }
+        catch ( Exception e )
+        {
+          e.getMessage();
+        }
       }
     }
     else
@@ -331,8 +377,8 @@ public class CapturedData implements AcquisitionResult
     this.channels = aChannels;
     this.enabledChannels = aEnabledChannels;
     this.absoluteLength = aAbsoluteLength;
-  }
-
+  }  
+  
   /**
    * Provides a binary search for arrays of long-values.
    * <p>

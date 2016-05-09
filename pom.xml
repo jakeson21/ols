@@ -55,6 +55,7 @@
 		<module>tool.asm45</module>
 		<module>tool.i2c</module>
 		<module>tool.jtag</module>
+		<module>tool.sbus</module>
 		<module>tool.spi</module>
 		<module>tool.state</module>
 		<module>tool.uart</module>
@@ -302,6 +303,11 @@
 				<groupId>nl.lxtreme.ols.tool</groupId>
 				<artifactId>i2c</artifactId>
 				<version>1.0.1</version>
+			</dependency>
+			<dependency>
+				<groupId>nl.lxtreme.ols.tool</groupId>
+				<artifactId>sbus</artifactId>
+				<version>1.0.0</version>
 			</dependency>
 			<dependency>
 				<groupId>nl.lxtreme.ols.tool</groupId>

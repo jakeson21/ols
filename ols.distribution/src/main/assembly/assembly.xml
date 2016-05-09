@@ -50,6 +50,7 @@
 				<include>nl.lxtreme.ols.tool:base</include>
 				<include>nl.lxtreme.ols.tool:i2c</include>
 				<include>nl.lxtreme.ols.tool:jtag</include>
+				<include>nl.lxtreme.ols.tool:sbus</include>
 				<include>nl.lxtreme.ols.tool:spi</include>
 				<include>nl.lxtreme.ols.tool:state</include>
 				<include>nl.lxtreme.ols.tool:uart</include>
@@ -97,7 +98,8 @@
 				<include>README</include>
 				<include>LICENSE</include>
 				<include>CHANGELOG</include>
-				<include>run.bat</include>
+                		<include>run.bat</include>
+                		<include>run_debug.bat</include>
 			</includes>
 			<lineEnding>dos</lineEnding>
 			<directoryMode>0755</directoryMode>
