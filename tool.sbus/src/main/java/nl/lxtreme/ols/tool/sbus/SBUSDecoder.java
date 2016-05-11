@@ -170,10 +170,10 @@ public final class SBUSDecoder
    * 
    * @return the data name, can be <code>null</code>.
    */
-  public int[] getInfoBytes()
-  {
-    return this.infoBytes;
-  }
+//  public int[] getInfoBytes()
+//  {
+//    return this.infoBytes;
+//  }
   
   public void setInfoBytes( final List<Integer> aInfoBytesList )
   {
@@ -206,56 +206,59 @@ public final class SBUSDecoder
    */
   void process()
   {
+    for ( int n=0; n<this.channels.length; n++ )
+    {
+      this.channels[0] = 0;
+    }
+    
     if (this.infoBytes[0] != SBUS_STARTBYTE || this.infoBytes[24] != SBUS_ENDBYTE) {
       //incorrect end byte, out of sync
       this.decoderErrorFrames++;
       return;
     }
+    
     this.goodFrames++;
 
-    channels[0]  = ((this.infoBytes[1]<<3 |this.infoBytes[2]>>5)                          & 0x07FF);
-    channels[1]  = ((this.infoBytes[2]<<6 |this.infoBytes[3]>>2)                          & 0x07FF);
-    channels[2]  = ((this.infoBytes[3]<<9 |this.infoBytes[4]<<2 | this.infoBytes[5]>>7)   & 0x07FF);
-    channels[3]  = ((this.infoBytes[5]<<4 |this.infoBytes[6]>>4)                          & 0x07FF);
-    channels[4]  = ((this.infoBytes[6]<<7 |this.infoBytes[7]>>1)                          & 0x07FF);
-    channels[5]  = ((this.infoBytes[7]<<10|this.infoBytes[8]<<2 |this.infoBytes[9]>>6)    & 0x07FF);
-    channels[6]  = ((this.infoBytes[9]<<5 |this.infoBytes[10]>>3)                         & 0x07FF);
-    channels[7]  = ((this.infoBytes[10]<<8|this.infoBytes[11])                            & 0x07FF);
-    channels[8]  = ((this.infoBytes[12]<<3|this.infoBytes[13]>>5)                         & 0x07FF);
-    channels[9]  = ((this.infoBytes[13]<<6|this.infoBytes[14]>>2)                         & 0x07FF);
-    channels[10] = ((this.infoBytes[14]<<9|this.infoBytes[15]<<1|this.infoBytes[16]>>7)   & 0x07FF);
-    channels[11] = ((this.infoBytes[16]<<4|this.infoBytes[17]>>4)                         & 0x07FF);
-    channels[12] = ((this.infoBytes[17]<<7|this.infoBytes[18]>>1)                         & 0x07FF);
-    channels[13] = ((this.infoBytes[18]<<10|this.infoBytes[19]<<2|this.infoBytes[20]>>6)  & 0x07FF);
-    channels[14] = ((this.infoBytes[20]<<5|this.infoBytes[21]>>3)                         & 0x07FF);
-    
-    channels[15] = ((this.infoBytes[21]<<8|this.infoBytes[22])                            & 0x07FF);
+    this.channels[0]  = ((this.infoBytes[1]<<3 |this.infoBytes[2]>>5)                          & 0x07FF);
+    this.channels[1]  = ((this.infoBytes[2]<<6 |this.infoBytes[3]>>2)                          & 0x07FF);
+    this.channels[2]  = ((this.infoBytes[3]<<9 |this.infoBytes[4]<<2 | this.infoBytes[5]>>7)   & 0x07FF);
+    this.channels[3]  = ((this.infoBytes[5]<<4 |this.infoBytes[6]>>4)                          & 0x07FF);
+    this.channels[4]  = ((this.infoBytes[6]<<7 |this.infoBytes[7]>>1)                          & 0x07FF);
+    this.channels[5]  = ((this.infoBytes[7]<<10|this.infoBytes[8]<<2 |this.infoBytes[9]>>6)    & 0x07FF);
+    this.channels[6]  = ((this.infoBytes[9]<<5 |this.infoBytes[10]>>3)                         & 0x07FF);
+    this.channels[7]  = ((this.infoBytes[10]<<8|this.infoBytes[11])                            & 0x07FF);
+    this.channels[8]  = ((this.infoBytes[12]<<3|this.infoBytes[13]>>5)                         & 0x07FF);
+    this.channels[9]  = ((this.infoBytes[13]<<6|this.infoBytes[14]>>2)                         & 0x07FF);
+    this.channels[10] = ((this.infoBytes[14]<<9|this.infoBytes[15]<<1|this.infoBytes[16]>>7)   & 0x07FF);
+    this.channels[11] = ((this.infoBytes[16]<<4|this.infoBytes[17]>>4)                         & 0x07FF);
+    this.channels[12] = ((this.infoBytes[17]<<7|this.infoBytes[18]>>1)                         & 0x07FF);
+    this.channels[13] = ((this.infoBytes[18]<<10|this.infoBytes[19]<<2|this.infoBytes[20]>>6)  & 0x07FF);
+    this.channels[14] = ((this.infoBytes[20]<<5|this.infoBytes[21]>>3)                         & 0x07FF);
+    this.channels[15] = ((this.infoBytes[21]<<8|this.infoBytes[22])                            & 0x07FF);
 
     // LSB is received first
     for ( int n=0; n<16; n++ )
-      channels[n] = reverseData(channels[n]);
+      this.channels[n] = reverseData(channels[n]);
     
-    if((this.infoBytes[23] & 0x0080) > 0) 
+    if((this.infoBytes[23] & 0x80) > 0) 
       this.channels[16] = 2047;
     else
       this.channels[16] = 0;
     
-    if((this.infoBytes[23] & 0x0040) > 0)
+    if((this.infoBytes[23] & 0x40) > 0)
       this.channels[17] = 2047;
     else
       this.channels[17] = 0;
 
-    if ((this.infoBytes[23] & 0x0020) > 0) {
+    if ((this.infoBytes[23] & 0x20) > 0) {
       lostFrames++;
     }
     
-    if ((this.infoBytes[23] & 0x0010) > 0) {
+    if ((this.infoBytes[23] & 0x10) > 0) {
       failsafe = SBUS_FAILSAFE_ACTIVE;
     } else {
       failsafe = SBUS_FAILSAFE_INACTIVE;
     }
-
-
   }
 
   /**

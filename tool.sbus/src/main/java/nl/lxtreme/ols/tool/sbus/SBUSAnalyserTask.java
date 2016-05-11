@@ -23,14 +23,10 @@ package nl.lxtreme.ols.tool.sbus;
 
 import static nl.lxtreme.ols.util.NumberUtils.*;
 
-import java.awt.*;
 import java.beans.*;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.locks.*;
 import java.util.logging.*;
-import java.lang.*;
-
 import javax.swing.*;
 
 import nl.lxtreme.ols.api.acquisition.*;
@@ -68,7 +64,6 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
   private final PropertyChangeSupport pcs;
 
   private int dataIdx;
-  private int clockIdx;
   private SBUSMode sbusMode;
   private int bitCount;
   
@@ -89,7 +84,6 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
 
     this.pcs = new PropertyChangeSupport( this );
     this.dataIdx  = -1;
-    this.clockIdx = -1;
     this.bitCount =  12;
   }
 
@@ -171,34 +165,12 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
    * Sets theSBUS Data channel index.
    * 
    * @param aIndex
-   *          the index of the "master-out slave-in"/IO0 channel.
+   *          the index of the DATA/IO0 channel.
    */
   public void setDataIndex( final int aIndex )
   {
     this.dataIdx = aIndex;
   }
-
-  /**
-   * Sets theSBUS Data channel index.
-   * 
-   * @param aIndex
-   *          the index of the "master-out slave-in"/IO0 channel.
-   */
-  public void setClockIndex( final int aIndex )
-  {
-    this.clockIdx = aIndex;
-  }
-
-//  /**
-//   * Sets the order in which bits in a SBUS datagram are transmitted.
-//   * 
-//   * @param aOrder
-//   *          the bit order to use, cannot be <code>null</code>.
-//   */
-//  public void setOrder( final BitOrder aOrder )
-//  {
-//    this.bitOrder = aOrder;
-//  }
 
   /**
    * Sets which SBUS mode should be used for the analysis process.
@@ -234,9 +206,10 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
     final long[] times = newData.getTimestamps();
     
     SBUSDataSet aNewDataSet = new SBUSDataSet( 0, values.length-1, newData);
-    int datavalue = 0;
     ArrayList<Integer> SBUSbytes = new ArrayList<Integer>();
     SBUSDecoder decoder = new SBUSDecoder();
+    
+    int datavalue = 0;
     int byteNdx = 0;
     int frameCount = 1;
     int lastFrameLossCount = 0;
@@ -257,8 +230,8 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
     		  }
     			idx++;
     		} 
-    		SBUSbytes.add(Integer.valueOf((datavalue >> 3) & 0xFF)); // mask off a byte and invert
-    		reportData ( aNewDataSet, byteStartIdx, idx, datavalue, datavalue, times, frameCount, byteNdx );
+    		SBUSbytes.add(Integer.valueOf((datavalue >> 3) & 0x00FF)); // mask off the info byte and invert
+    		reportData ( aNewDataSet, byteStartIdx, idx, datavalue, 0, times, frameCount, byteNdx );
     		byteNdx++;
     		
     		if ( byteNdx==25 ) // Full frame received
@@ -285,27 +258,7 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
     		byteNdx = 0;
     	}
     	
-		this.progressListener.setProgress( getPercentage( idx, aNewDataSet.getStartOfDecode(), aNewDataSet.getEndOfDecode() ) );
-    	
-    	// Reports Byte values
-//        if ( ( this.dataIdx >= 0 ) && ( ( values[idx] & dataMask ) != 0 ) )
-//        {
-//        	datavalue |= ( 1 << bitIdx );
-//        }
-//        bitIdx--;
-//        
-//        if ( bitIdx < 0 )
-//        {
-//    	try {
-//	    		this.progressListener.setProgress( getPercentage( idx, aNewDataSet.getStartOfDecode(), aNewDataSet.getEndOfDecode() ) );
-//	    		reportData ( aNewDataSet, idx-this.bitCount, idx, datavalue, values[idx] & clockMask, times );
-//	    		bitIdx = this.bitCount;
-//	    		datavalue = 0;
-//	    	} catch(Exception e){
-//	    		
-//	    	}
-//        }
-		
+		this.progressListener.setProgress( getPercentage( idx, aNewDataSet.getStartOfDecode(), aNewDataSet.getEndOfDecode() ) );		
     }
     
     return aNewDataSet;
@@ -402,20 +355,18 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
   } 
   
   /**
-   * Tries the detect what the clock polarity of the contained data values is.
+   * Tries the detect the frame period since this is what determines the mode.
    * Based on this we can make a "educated" guess what SBUS mode should be used
    * for the decoding of the remainder of data.
    * <p>
-   * Currently, there is no way I can think of how the CPHA value can be
-   * determined from the data. Hence, we can only determine the clock polarity
-   * (CPOL), which also provides a good idea on what mode the SBUS-data is.
+   * The easiest way to do this is to simply time the interval between frames.
    * </p>
    * 
    * @param aStartIndex
    *          the starting sample index to use;
    * @param aEndIndex
    *          the ending sample index to use.
-   * @return the presumed SBUS mode, either mode 0 or 2.
+   * @return the presumed SBUS mode, either LOW_SPEED or HIGH_SPEED.
    */
 	private SBUSMode detectSBUSMode(final int aStartIndex, final int aEndIndex) 
 	{
@@ -423,20 +374,17 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
 		final long[] time = data.getTimestamps();
 		final Frequency<Double> valueStats = new Frequency<Double>();
 
-		// Determine the value of the clock line of each sample; the value that
-		// occurs the most is probably the default polarity...
+		// Look through capture and grab the number of seconds between frames 
 		for (int i = aStartIndex; i < aEndIndex-1; i++) {
 			final double dt = (double)(time[i+1] - time[i]) / data.getSampleRate();
-			if ( dt > SBUSAnalyserTask.BIT_PERIOD * (SBUSAnalyserTask.BITS_PER_FRAME))
+			if ( dt > SBUSAnalyserTask.BIT_PERIOD * (SBUSAnalyserTask.BITS_PER_FRAME-1))
 				valueStats.addValue(Double.valueOf(dt));
 		}
 
 		SBUSMode result;
 
-		// If the clock line's most occurring value is one, then
-		// we're fairly sure that CPOL == 1...
 		if ( Math.abs( valueStats.getHighestRanked().doubleValue() - SBUSAnalyserTask.LOW_SPEED_RATE ) < 
-			 Math.abs( valueStats.getHighestRanked().doubleValue() - SBUSAnalyserTask.HIGH_SPEED_RATE )	) 
+			   Math.abs( valueStats.getHighestRanked().doubleValue() - SBUSAnalyserTask.HIGH_SPEED_RATE )	) 
 		{
 			result = SBUSMode.LOW_SPEED;
 		} else {
@@ -461,7 +409,7 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
   }
 
   /**
-   * Reports a set of data-bytes (both MISO and MOSI).
+   * Reports a set of data-bytes (both 8E2 byte and channel Data byte values).
    * 
    * @param aDecodedData
    *          the data set to add the data event(s) to;
@@ -478,8 +426,7 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
       if ( this.dataIdx >= 0 )
       {
         // Perform bit-order conversion on the full byte...
-          final int datavalue = NumberUtils.convertBitOrder( aDataValue, ( this.bitCount + 1 ), BIT_ORDER );
-//          final int databytevalue = NumberUtils.convertBitOrder( aDataByteValue, ( this.bitCount + 1 ), BIT_ORDER );
+        final int datavalue = NumberUtils.convertBitOrder( aDataValue, ( this.bitCount + 1 ), BIT_ORDER );
 
         String formatSpec = "0x%1$X";
         if ( Character.isLetterOrDigit( datavalue ) )
@@ -490,10 +437,6 @@ public class SBUSAnalyserTask implements ToolTask<SBUSDataSet>
         this.annotationListener.onAnnotation( new SampleDataAnnotation( this.dataIdx, timestamps[aStartIdx],
         		timestamps[aEndIdx], String.format( formatSpec, Integer.valueOf( datavalue) ) ) );
         aDecodedData.reportSBUSData( this.dataIdx, aStartIdx, aEndIdx, datavalue, aFrameIndex );
-        
-//        this.annotationListener.onAnnotation( new SampleDataAnnotation( this.clockIdx, timestamps[aStartIdx],
-//                timestamps[aEndIdx], String.format( formatSpec, Integer.valueOf( databytevalue ) ) ) );
-//        aDecodedData.reportSBUSByte( this.clockIdx, aStartIdx, aEndIdx, databytevalue, aFrameIndex, aByteIndex );
       }
   }
 }

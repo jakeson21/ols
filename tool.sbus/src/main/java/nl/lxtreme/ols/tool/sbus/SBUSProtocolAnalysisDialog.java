@@ -76,23 +76,6 @@ public final class SBUSProtocolAnalysisDialog extends BaseToolDialog<SBUSDataSet
 
     // METHODS
 
-    /**
-     * @see nl.lxtreme.ols.util.swing.component.EnumItemRenderer#getDisplayValue(java.lang.Enum)
-     */
-    @Override
-    protected String getDisplayValue( final BitOrder aValue )
-    {
-      switch ( aValue )
-      {
-        case LSB_FIRST:
-          return "LSB first";
-        case MSB_FIRST:
-          return "MSB first";
-      }
-      // Strange, we shouldn't be here...
-      LOG.warning( "We should not be here actually! Value = " + aValue );
-      return super.getDisplayValue( aValue );
-    }
   }
 
   /**
@@ -122,6 +105,8 @@ public final class SBUSProtocolAnalysisDialog extends BaseToolDialog<SBUSDataSet
           return "High Speed";
 
       }
+      // Strange, we shouldn't be here...
+      LOG.warning( "We should not be here actually! Value = " + aValue );
       return super.getDisplayValue( aValue );
     }
 
@@ -149,13 +134,9 @@ public final class SBUSProtocolAnalysisDialog extends BaseToolDialog<SBUSDataSet
   // CONSTANTS
 
   private static final long serialVersionUID = 1L;
-
   private static final Logger LOG = Logger.getLogger( SBUSProtocolAnalysisDialog.class.getName() );
 
   // VARIABLES
-
-  private JLabel dataLabel;
-  private JLabel modeLabel;
 
   private JComboBox data;
   private JComboBox mode; // LOW_SPEED analog 14ms, HIGH_SPEED digital 7ms
@@ -272,10 +253,6 @@ public final class SBUSProtocolAnalysisDialog extends BaseToolDialog<SBUSDataSet
   public void setAutoDetectSBUSMode( final SBUSMode aMode )
   {
     this.detectedSBUSMode = aMode;
-//	JOptionPane.showMessageDialog(null, 
-//			"setAutoDetectSBUSMode " + this.detectedSBUSMode, 
-//			"setAutoDetectSBUSMode called",  
-//            JOptionPane.OK_OPTION);
   }
 
   /**
@@ -342,8 +319,6 @@ public final class SBUSProtocolAnalysisDialog extends BaseToolDialog<SBUSDataSet
     SBUSAnalyserTask toolTask = ( SBUSAnalyserTask )aToolTask;
 
     toolTask.setDataIndex( this.data.getSelectedIndex() );
-    toolTask.setClockIndex( this.data.getSelectedIndex()+1 );
-//    toolTask.setOrder( ( BitOrder )this.order.getSelectedItem() );
     toolTask.setSBUSMode( ( SBUSMode )this.mode.getSelectedItem() );
 
     // Register ourselves as property change listener...
@@ -609,7 +584,6 @@ public final class SBUSProtocolAnalysisDialog extends BaseToolDialog<SBUSDataSet
         final String startTime = Unit.Time.format( aDataSet.getTime( ds.getStartSampleIndex() ) );
         final String endTime = Unit.Time.format( aDataSet.getTime( ds.getStartSampleIndex() ) );
         final String sbusDataValue = ds.isSbusData() ? Integer.toString( ds.getDataValue() ) : null;
-//        final String misoDataValue = ds.isMisoData() ? Integer.toString( ds.getDataValue() ) : null;
 
         exporter.addRow( Integer.valueOf( i ), startTime, endTime, Boolean.valueOf( ds.isEvent() ), ds.getEventName(),
         		sbusDataValue );
